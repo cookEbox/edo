@@ -1,0 +1,52 @@
+# Haskell build artefacts
+dist/
+dist-*/
+cabal-dev/
+*.o
+*.hi
+*.dyn_o
+*.dyn_hi
+*.chi
+*.chs.h
+*.hc
+*.p_o
+
+# Cabal build cache
+cabal.project.local
+cabal.project.local~
+cabal.project.local*.backup
+cabal.sandbox.config
+*.cabal.work
+
+# Haskell Language Server / ghcid / tooling
+.hie/
+.hie-bios/
+.hie-bios.log
+.ghc.environment.*
+.ghcid/
+
+# Nix build outputs
+result
+result-*/
+.nix-gcRoots/
+
+# Direnv / local env
+.direnv/
+.envrc
+
+# Common editor junk
+*~
+*.swp
+*.swo
+*.bak
+*.tmp
+*.DS_Store
+Thumbs.db
+
+# VSCode / IDE caches
+.vscode/
+.idea/
+
+# Hoogle (if generated manually)
+.hoogle/
+

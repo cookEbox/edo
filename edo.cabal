@@ -1,0 +1,53 @@
+cabal-version:      3.0
+name:               edo
+version:            0.1.0.0
+synopsis:           A qualified do library for IO (Either e a) combinator
+-- description:
+homepage:           https://github.com/cookEbox/edo
+license:            MIT
+license-file:       LICENSE
+author:             Nick Cooke
+maintainer:         nj.cooke@outlook.com
+-- copyright:
+category:           Control
+build-type:         Simple
+extra-doc-files:    CHANGELOG.md
+-- extra-source-files:
+
+common warnings
+    ghc-options: -Wall
+
+library
+    import:           warnings
+    exposed-modules:  EitherDo.Edo
+    other-modules:
+        EitherDo.Core
+        EitherDo.Collect
+        EitherDo.Branch
+        EitherDo.Error
+        EitherDo.Except
+        EitherDo.Kleisli
+        EitherDo.Lift
+        EitherDo.Res
+    build-depends:    base ^>=4.19.2.0
+    hs-source-dirs:   src
+    if impl(ghc >= 9.10)
+      default-language: GHC2024
+    else
+      default-language: GHC2021
+
+test-suite test
+    import:           warnings
+    if impl(ghc >= 9.10)
+      default-language: GHC2024
+    else
+      default-language: GHC2021
+    -- other-modules:
+    -- other-extensions:
+    type:             exitcode-stdio-1.0
+    hs-source-dirs:   test
+    main-is:          Main.hs
+    build-depends:
+        base ^>=4.19.2.0
+      , edo
+      , doctest
