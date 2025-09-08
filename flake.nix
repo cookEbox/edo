@@ -41,7 +41,7 @@
             cabal clean
 
             echo "[edo-hoogle] generating HTML + Hoogle docs via cabal…"
-            cabal haddock --haddock-html --haddock-hoogle --haddock-quickjump
+            cabal haddock --haddock-html --haddock-hoogle --haddock-quickjump 
 
             echo "[edo-hoogle] locating hoogle txt…"
             # Prefer the package's own txt (e.g. .../doc/html/edo/edo.txt)

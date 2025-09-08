@@ -12,6 +12,7 @@ maintainer:         nj.cooke@outlook.com
 category:           Control
 build-type:         Simple
 extra-doc-files:    CHANGELOG.md
+                    docs/PROLOGUE.md
 -- extra-source-files:
 
 common warnings
