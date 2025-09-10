@@ -24,6 +24,17 @@ This makes signatures shorter and emphasises that **`IOEither` is just a synonym
 
 ---
 
+## Two modules: EitherDo and EithErrDo
+
+The library provides **two main entry points**:
+
+- **`EitherDo`** — the base module, easiest for new users who just want ergonomic `IO (Either e a)` code.  
+- **`EithErrDo`** — a stricter variant that encourages using a dedicated `Error` type class for error management.  
+
+👉 New users may start with `EitherDo`, but if you plan to use this library for **serious error handling**, we recommend moving to `EithErrDo`.
+
+---
+
 ## Quick taste
 
 ```haskell

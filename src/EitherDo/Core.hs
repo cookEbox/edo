@@ -57,6 +57,7 @@ type IOEither e a = IO (Either e a)
 --
 (=<<) :: (a -> IOEither e b) -> IOEither e a -> IOEither e b
 (=<<) = flip (>>=)
+
 -- | Sequencing for @IOEither@; discards the first result.
 -- @since 0.1.0
 --
@@ -67,13 +68,6 @@ type IOEither e a = IO (Either e a)
 -- Left "e"
 (>>) :: IOEither e a -> IOEither e b -> IOEither e b
 m1 >> m2 = m1 >>= const m2
-
--- | Pipe the @Right@ value into a continuation; if @Left@, propagate it.
--- @since 0.1.0
---
--- Synonym of '(>>=)' specialized to readability in pipelines.
-onRight :: IOEither e a -> (a -> IOEither e b) -> IOEither e b
-onRight io f = io P.>>= either (pure . Left) f
 
 -- | Pipeline sugar: same behavior as >>=.
 -- @since 0.1.0
@@ -87,6 +81,13 @@ onRight io f = io P.>>= either (pure . Left) f
 (|>) :: IOEither e a -> (a -> IOEither e b) -> IOEither e b
 (|>) = onRight
 infixr 0 |>
+
+-- | Pipe the @Right@ value into a continuation; if @Left@, propagate it.
+-- @since 0.1.0
+--
+-- Synonym of '(>>=)' specialized to readability in pipelines.
+onRight :: IOEither e a -> (a -> IOEither e b) -> IOEither e b
+onRight io f = io P.>>= either (pure . Left) f
 
 -- | Lift a pure value into @Right@.
 -- @since 0.1.0
