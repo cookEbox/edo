@@ -3,7 +3,7 @@
 
 {-|
 Module      : EithErrDo.Edo
-Description : Qualified do-notation and helpers for IO (Either e a)
+Description : Qualified do-notation and helpers for IO (Either e a) where e is contstrained as an Error
 License     : BSD-3-Clause
 Maintainer  : nj.cooke@outlook.com
 Stability   : experimental
