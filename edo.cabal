@@ -20,7 +20,9 @@ common warnings
 
 library
     import:           warnings
-    exposed-modules:  EitherDo.Edo
+    exposed-modules:  
+        EitherDo.Edo
+        EithErrDo.Edo
     other-modules:
         EitherDo.Core
         EitherDo.Collect
@@ -30,7 +32,18 @@ library
         EitherDo.Kleisli
         EitherDo.Lift
         EitherDo.Res
-    build-depends:    base ^>=4.19.2.0
+        EithErrDo.Core
+        EithErrDo.Collect
+        EithErrDo.Branch
+        EithErrDo.Error
+        EithErrDo.Except
+        EithErrDo.Kleisli
+        EithErrDo.Lift
+        EithErrDo.Res
+        EithErrDo.Types
+    build-depends:      
+        base ^>=4.19.2.0
+      , text
     hs-source-dirs:   src
     if impl(ghc >= 9.10)
       default-language: GHC2024

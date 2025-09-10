@@ -24,7 +24,18 @@ This makes signatures shorter and emphasises that **`IOEither` is just a synonym
 
 ---
 
-## Quick taste
+## Two modules: EitherDo and EithErrDo
+
+The library provides **two main entry points**:
+
+- **`EitherDo`** — the base module, easiest for new users who just want ergonomic `IO (Either e a)` code.  
+- **`EithErrDo`** — a stricter variant that encourages using a dedicated `Error` type class for error management.  
+
+👉 New users may start with `EitherDo`, but if you plan to use this library for **serious error handling**, we recommend moving to `EithErrDo`.
+
+---
+
+## Quick taste (EitherDo)
 
 ```haskell
 {-# LANGUAGE QualifiedDo #-}
@@ -45,6 +56,41 @@ pipeline = E.do
   _ <- E.traverseE_ doOne [1..n]
   E.ok ()
 ```
+
+---
+
+## Quick taste (EithErrDo)
+
+```haskell
+{-# LANGUAGE QualifiedDo #-}
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DerivingStrategies #-}
+
+import qualified EithErrDo.Edo as E
+import GHC.Generics (Generic)
+
+-- Define an error type that is an instance of the Error class
+data MyError
+  = MissingConfig
+  | ParseFail
+  | DbError String
+  deriving stock (Show, Eq, Generic)
+  deriving anyclass (E.Error)
+
+fetchConfig :: E.IOEither MyError Int
+fetchConfig = pure (Right 3)
+
+doOne :: Int -> E.IOEither MyError ()
+doOne n = if n < 5 then E.ok () else E.bad (DbError "too big")
+
+pipeline :: E.IOEither MyError ()
+pipeline = E.do
+  n <- fetchConfig
+  _ <- E.traverseE_ doOne [1..n]
+  E.ok ()
+```
+
+This version enforces that your error type implements the `Error` type class, encouraging consistency and better error management.
 
 ---
 

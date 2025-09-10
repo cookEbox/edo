@@ -20,7 +20,6 @@ import EitherDo.Core
 -- >>> import qualified Control.Exception as X
 -- >>> :set -XQualifiedDo
 
-
 -- | Lift a pure 'Either' into 'IOEither'.
 -- @since 0.1.0
 --
