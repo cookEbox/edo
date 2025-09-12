@@ -42,19 +42,27 @@ The library provides **two main entry points**:
 
 import qualified EitherDo.Edo as E
 
-data Err = MissingConfig | ParseFail | DbError String
-
-fetchConfig :: E.IOEither Err Int
+-- Keep it simple: use String directly for errors
+fetchConfig :: E.IOEither String Int
 fetchConfig = pure (Right 3)
 
-doOne :: Int -> E.IOEither Err ()
-doOne n = if n < 5 then E.ok () else E.bad (DbError "too big")
+doOne :: Int -> E.IOEither String ()
+doOne n = if n < 5 then E.ok () else E.bad "too big"
 
-pipeline :: E.IOEither Err ()
+pipeline :: E.IOEither String ()
 pipeline = E.do
   n <- fetchConfig
   _ <- E.traverseE_ doOne [1..n]
   E.ok ()
+
+main :: IO ()
+main = do
+  putStrLn "Running pipeline..."
+  r <- pipeline
+  -- Normal IO do-block interleaving with E.do pipeline
+  case r of
+    Left err -> putStrLn ("ERROR: " ++ err)
+    Right () -> putStrLn "OK"
 ```
 
 ---
@@ -138,6 +146,76 @@ main = do
 > your own `Error` instances (or skip a unifying class). `EithErrDo`’s adapters let you
 > drop in existing `Exception`/`Show` types and keep everything coherent and consistent.
 
+
+### Error handling styles
+
+The library is designed around three complementary patterns:
+
+#### 1. Exception-first (using `ViaException`)
+Handle exceptions directly in your error channel — no need to define a domain error.
+
+```haskell
+import qualified EithErrDo.Edo as E
+import Control.Exception (IOException, try)
+import qualified Data.Text as T
+
+readTextFile :: FilePath -> E.IOEither (E.ViaException IOException) T.Text
+readTextFile fp = do
+  r <- try @IOException (readFile fp)
+  case r of
+    Left ioe  -> E.bad (E.ViaException ioe)   -- satisfies Error automatically
+    Right str -> E.ok (T.pack str)
+```
+
+#### 2. Domain-first (using `ViaShow`)
+Define a curated error vocabulary for your application.
+
+```haskell
+data MyError
+  = MissingConfig
+  | ParseFail
+  | DbTooBig
+  deriving stock (Show, Eq)
+  deriving (E.Error) via (E.ViaShow MyError)
+
+pipeline :: E.IOEither MyError Int
+pipeline = E.do
+  n <- E.ok 3
+  _ <- if n < 5 then E.ok () else E.bad DbTooBig
+  E.ok (n+1)
+```
+
+#### 3. Bridging (map both into a single `AppError`)
+When you want to compose both domain errors and exceptions, lift them into one sum type.
+
+```haskell
+data AppError
+  = Domain MyError
+  | Io (E.ViaException IOException)
+  deriving stock Show
+  deriving (E.Error) via (E.ViaShow AppError)
+
+useDomain :: E.IOEither MyError ()
+useDomain = E.bad DbTooBig
+
+useIo :: E.IOEither (E.ViaException IOException) ()
+useIo = do
+  r <- try @IOException (readFile "missing.txt")
+  case r of
+    Left ioe -> E.bad (E.ViaException ioe)
+    Right _  -> E.ok ()
+
+pipeline :: E.IOEither AppError ()
+pipeline = E.do
+  _ <- E.mapErrorE Domain =<< useDomain
+  _ <- E.mapErrorE Io     =<< useIo
+  E.ok ()
+```
+
+**Summary:**  
+- Use **`ViaException`** when you want to propagate exceptions directly.  
+- Use **`ViaShow`** (or a manual instance) for domain-specific errors.  
+- Use **bridging** when both styles appear together.
 
 ## Installing
 
@@ -227,3 +305,4 @@ import qualified EitherDo.Edo as E
 ## License
 
 BSD-3-Clause
+
