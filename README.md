@@ -63,36 +63,81 @@ pipeline = E.do
 
 ```haskell
 {-# LANGUAGE QualifiedDo #-}
-{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 import qualified EithErrDo.Edo as E
-import GHC.Generics (Generic)
+import Control.Exception (IOException, try)
+import qualified Data.Text as T
+import qualified Data.Text.IO as T
 
--- Define an error type that is an instance of the Error class
+-- Domain error type that can also carry real exceptions
 data MyError
   = MissingConfig
   | ParseFail
-  | DbError String
-  deriving stock (Show, Eq, Generic)
-  deriving anyclass (E.Error)
+  | DbTooBig
+  | IoErr (E.ViaException IOException)     -- <— adapter for IOException
+  deriving stock (Show, Eq)
+  -- Reuse Show for pretty display of *domain* errors:
+  deriving (E.Error) via (E.ViaShow MyError)
 
-fetchConfig :: E.IOEither MyError Int
-fetchConfig = pure (Right 3)
+type IOEither e a = E.IOEither e a
 
-doOne :: Int -> E.IOEither MyError ()
-doOne n = if n < 5 then E.ok () else E.bad (DbError "too big")
+-- Step 1: fetch some config (domain-level success)
+fetchConfig :: IOEither MyError Int
+fetchConfig = E.ok 7
 
-pipeline :: E.IOEither MyError ()
+-- Step 2: do a domain-level check that can fail
+ensureSmall :: Int -> IOEither MyError ()
+ensureSmall n = if n < 5 then E.ok () else E.bad DbTooBig
+
+-- Step 3: perform an IO action that can throw (we catch and adapt)
+readCfgFile :: FilePath -> IOEither MyError T.Text
+readCfgFile fp = do
+  r <- try @IOException (readFile fp)     -- IO (Either IOException String)
+  case r of
+    Left ioe  -> E.bad (IoErr (E.ViaException ioe))  -- <— wrap exception coherently
+    Right str -> E.ok (T.pack str)
+
+-- Step 4: another pure/domain step (won't run if an earlier Left occurs)
+parseCfg :: T.Text -> IOEither MyError Int
+parseCfg t =
+  case reads (T.unpack t) of
+    [(n, "")] -> E.ok n
+    _         -> E.bad ParseFail
+
+-- The pipeline: the *first* Left short-circuits the rest.
+-- Try changing the filename to an existing file to see later steps run.
+pipeline :: IOEither MyError Int
 pipeline = E.do
-  n <- fetchConfig
-  _ <- E.traverseE_ doOne [1..n]
-  E.ok ()
+  n  <- fetchConfig              -- OK: 7
+  _  <- ensureSmall n            -- Left DbTooBig (since 7 >= 5) ⇒ short-circuit
+  t  <- readCfgFile "missing.txt" -- This step is SKIPPED if DbTooBig already occurred
+  x  <- parseCfg t                -- Also skipped if earlier Left
+  E.ok x
+
+-- End-of-world handling: collect the first error or the final result
+main :: IO ()
+main = do
+  r <- pipeline
+  case r of
+    Left e  -> T.putStrLn ("ERROR: " <> E.displayError e)
+    Right x -> T.putStrLn ("OK: value = " <> T.pack (show x))
 ```
 
-This version enforces that your error type implements the `Error` type class, encouraging consistency and better error management.
+**What this buys you (chaining and first-failure wins):**
+- Each step returns `IO (Either MyError a)`; the qualified `E.do` chains them.
+- The **first `Left`** (domain error like `DbTooBig` *or* wrapped exception like `IoErr …`)
+  **short-circuits** the rest, so later steps don’t run.
+- At the end, you get a single `Either MyError result` to handle in one place.
+- `ViaException` and `ViaShow` are the glue: they let you mix domain errors and caught exceptions
+  **without writing bespoke `Error` instances** or risking orphan/overlapping instances.
 
----
+> With plain **EitherDo**, you can still chain `IO (Either e a)`, but you’d have to write
+> your own `Error` instances (or skip a unifying class). `EithErrDo`’s adapters let you
+> drop in existing `Exception`/`Show` types and keep everything coherent and consistent.
+
 
 ## Installing
 
