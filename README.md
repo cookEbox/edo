@@ -78,7 +78,6 @@ main = do
 import qualified EithErrDo.Edo as E
 import Control.Exception (IOException, try)
 import qualified Data.Text as T
-import qualified Data.Text.IO as T
 
 -- Domain error type that can also carry real exceptions
 data MyError
