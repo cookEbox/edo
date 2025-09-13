@@ -9,6 +9,7 @@ Maintainer  : nj.cooke@outlook.com
 Stability   : experimental
 Portability : portable
 
+For more examples please go to https://github.com/cookEbox/edo
 Write ergonomic code in the @IO (Either e a)@ style using @QualifiedDo@:
 
 @
