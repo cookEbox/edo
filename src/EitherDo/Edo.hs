@@ -12,13 +12,31 @@ Portability : portable
 Write ergonomic code in the @IO (Either e a)@ style using @QualifiedDo@:
 
 @
+{-# LANGUAGE QualifiedDo #-}
+
 import qualified EitherDo.Edo as E
 
-action :: E.IOEither Text ()
-action = E.do
-  n  <- readConfigE          -- IO (Either e Int)
-  _  <- E.traverseE_ doOne [1..n]
+fetchConfig :: E.IOEither String Int
+fetchConfig = pure (Right 3) -- "OK"
+-- fetchConfig = pure (Right 5) -- "ERROR: too big"
+
+doOne :: Int -> E.IOEither String ()
+doOne n = if n < 5 then E.ok () else E.bad "too big"
+
+pipeline :: E.IOEither String ()
+pipeline = E.do
+  n <- fetchConfig
+  _ <- E.traverseE_ doOne [1..n]
   E.ok ()
+
+main :: IO ()
+main = do
+  putStrLn "Running pipeline..."
+  r <- pipeline
+  -- Normal IO do-block interleaving with E.do pipeline
+  case r of
+    Left err -> putStrLn ("ERROR: " ++ err)
+    Right () -> putStrLn "OK"
 @
 
 @since 0.1.0

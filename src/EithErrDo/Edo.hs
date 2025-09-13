@@ -17,32 +17,47 @@ straight-line code and let failures short-circuit automatically.
 Here is a complete example:
 
 @
-{-# LANGUAGE QualifiedDo, OverloadedStrings, DerivingVia #-}
+{-# LANGUAGE QualifiedDo #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE DerivingVia #-}
 
 import qualified EithErrDo.Edo as E
-import Data.Text (Text)
+import qualified Data.Text as T
 import System.Environment (lookupEnv)
+import Text.Read (readEither)
 
--- A small error type with 'Error' instance via 'Show'
-data Err = ParseErr Text | NotFound Text
+data Err = ParseErr T.Text | NotFound T.Text
   deriving (Eq, Show)
 deriving via (E.ViaShow Err) instance E.Error Err
 
--- A config reader in the 'IOEither Err' style
-readPort :: E.IOEither Err Int
-readPort = E.do
-  m <- E.hoistEither (maybe (Left (NotFound "PORT")) Right)
-         =<< E.ok =<< lookupEnv "PORT"
-  n <- E.hoistEither ParseErr (readEither m)
-  E.ok n
+type IOEither e a = E.IOEither e a
+hoistMaybe :: E.Error e => e -> Maybe a -> IOEither e a
+hoistMaybe e m = E.hoistEither id (maybe (Left e) Right m)
 
--- Example program using the API
+-- Pipeline A: guaranteed success (uses a constant "123")
+okPipeline :: IOEither Err Int
+okPipeline = E.do
+  s <- E.ok "123"
+  E.hoistEither (ParseErr . T.pack) (readEither s)
+
+-- Pipeline B: likely failure if PORT is not set
+badPipeline :: IOEither Err Int
+badPipeline = E.do
+  m <- E.ok =<< lookupEnv "PORT"
+  s <- hoistMaybe (NotFound "PORT") m
+  E.hoistEither (ParseErr . T.pack) (readEither s)
+
 main :: IO ()
 main = do
-  r <- readPort
-  case r of
-    Left e  -> putStrLn ("config error: " <> show e)
-    Right n -> putStrLn ("starting on port " <> show n)
+  r1 <- okPipeline
+  putStrLn $ case r1 of
+    Left e  -> "OK pipeline error (unexpected): " <> show e
+    Right n -> "OK pipeline result: " <> show n
+
+  r2 <- badPipeline
+  putStrLn $ case r2 of
+    Left e  -> "PORT pipeline error (expected if PORT unset): " <> show e
+    Right n -> "PORT pipeline result: " <> show n
 @
 
 The above shows:
