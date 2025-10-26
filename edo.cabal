@@ -23,6 +23,7 @@ library
     exposed-modules:  
         EitherDo.Edo
         EithErrDo.Edo
+        ReadErrDo.Redo
     other-modules:
         EitherDo.Core
         EitherDo.Collect
@@ -41,7 +42,6 @@ library
         EithErrDo.Lift
         EithErrDo.Res
         EithErrDo.Types
-        ReadErrDo.Redo
     build-depends:      
         base ^>=4.19.2.0
       , text
