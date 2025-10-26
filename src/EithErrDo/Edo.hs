@@ -1,5 +1,4 @@
 {-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE QualifiedDo       #-}
 
 {-|
 Module      : EithErrDo.Edo

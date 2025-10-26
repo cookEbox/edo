@@ -24,14 +24,15 @@ This makes signatures shorter and emphasises that **`IOEither` is just a synonym
 
 ---
 
-## Two modules: EitherDo and EithErrDo
+## Three modules: EitherDo, EithErrDo, and ReadErrDo
 
-The library provides **two main entry points**:
+The library provides **three** entry points:
 
 - **`EitherDo`** — the base module, easiest for new users who just want ergonomic `IO (Either e a)` code.  
-- **`EithErrDo`** — a stricter variant that encourages using a dedicated `Error` type class for error management.  
+- **`EithErrDo`** — a stricter variant that encourages using a dedicated `Error` type class for error management (with adapters `ViaShow` / `ViaException`).  
+- **`ReadErrDo`** — a tiny Reader-style layer that threads a read-only config through your `IO (Either e a)` programs **without transformers** (`ask`, `local`, `view`, `run/load`) while keeping the same error model.
 
-👉 New users may start with `EitherDo`, but if you plan to use this library for **serious error handling**, we recommend moving to `EithErrDo`.
+👉 New users may start with `EitherDo`, but if you plan to use this library for **serious error handling**, we recommend moving to `EithErrDo`. If you also need a shared configuration, reach for **`ReadErrDo`**.
 
 ---
 
@@ -145,76 +146,71 @@ main = do
 > your own `Error` instances (or skip a unifying class). `EithErrDo`’s adapters let you
 > drop in existing `Exception`/`Show` types and keep everything coherent and consistent.
 
+---
 
-### Error handling styles
+## Quick taste (ReadErrDo)
 
-The library is designed around three complementary patterns:
-
-#### 1. Exception-first (using `ViaException`)
-Handle exceptions directly in your error channel — no need to define a domain error.
+A tiny Reader-style layer to thread a read-only config through your `IO (Either e a)` program—no transformers required.
 
 ```haskell
+{-# LANGUAGE QualifiedDo #-}
+{-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE OverloadedStrings #-}
+
+import qualified ReadErrDo.Edo as R
 import qualified EithErrDo.Edo as E
-import Control.Exception (IOException, try)
 import qualified Data.Text as T
 
-readTextFile :: FilePath -> E.IOEither (E.ViaException IOException) T.Text
-readTextFile fp = do
-  r <- try @IOException (readFile fp)
+-- Define an application error and derive Error via Show
+data AppErr = MissingVar T.Text | BadPort T.Text | DbErr T.Text
+  deriving (Eq, Show)
+deriving via (E.ViaShow AppErr) instance E.Error AppErr
+
+-- Read-only configuration threaded through the program
+data Config = Config { fallbackPort :: Int, defaultUser :: T.Text }
+
+-- Pure parse that we can lift later
+parsePort :: String -> Either AppErr Int
+parsePort s =
+  case reads s of
+    [(n,"")] | n > 0 && n < 65536 -> Right n
+    _                             -> Left (BadPort (T.pack s))
+
+-- A simple IOEither action we’ll call from ReadErrDo
+greet :: T.Text -> E.IOEither AppErr T.Text
+greet who = E.ok (T.concat ["Hello, ", who, "!"])
+
+-- The program: ask for config, try to read PORT (simulated), recover to fallback
+program :: R.ReadErrDo Config AppErr T.Text
+program = do
+  cfg <- R.ask
+  let fallback = fallbackPort cfg
+      who      = defaultUser  cfg
+
+  mEnv <- R.liftIO (pure (Nothing :: Maybe String))  -- simulate unset PORT
+
+  port <- R.recover (const (pure fallback)) $ do
+    portStr <- R.liftIOEither (E.fromMaybeE (MissingVar "PORT") mEnv)
+    R.liftEither (parsePort portStr)
+
+  _ <- R.liftIOEither (E.ok port) -- pretend to use the port
+  R.liftIOEither (greet who)
+
+main :: IO ()
+main = do
+  let cfg = Config { fallbackPort = 8080, defaultUser = "Nick" }
+  r <- R.load cfg program
   case r of
-    Left ioe  -> E.bad (E.ViaException ioe)   -- satisfies Error automatically
-    Right str -> E.ok (T.pack str)
+    Left  e -> putStrLn ("ERROR: " <> T.unpack (E.displayError e))
+    Right t -> putStrLn (T.unpack t)
 ```
 
-#### 2. Domain-first (using `ViaShow`)
-Define a curated error vocabulary for your application.
+**Why ReadErrDo?**
+- Keep effects **concrete** (`cfg -> IO (Either e a)` under the hood).
+- Get **Reader conveniences** (`ask`, `local`, `view`) with your existing `IOEither` flow.
+- **Interop** seamlessly with `EithErrDo` helpers and `Error` adapters.
 
-```haskell
-data MyError
-  = MissingConfig
-  | ParseFail
-  | DbTooBig
-  deriving stock (Show, Eq)
-  deriving (E.Error) via (E.ViaShow MyError)
-
-pipeline :: E.IOEither MyError Int
-pipeline = E.do
-  n <- E.ok 3
-  _ <- if n < 5 then E.ok () else E.bad DbTooBig
-  E.ok (n+1)
-```
-
-#### 3. Bridging (map both into a single `AppError`)
-When you want to compose both domain errors and exceptions, lift them into one sum type.
-
-```haskell
-data AppError
-  = Domain MyError
-  | Io (E.ViaException IOException)
-  deriving stock Show
-  deriving (E.Error) via (E.ViaShow AppError)
-
-useDomain :: E.IOEither MyError ()
-useDomain = E.bad DbTooBig
-
-useIo :: E.IOEither (E.ViaException IOException) ()
-useIo = do
-  r <- try @IOException (readFile "missing.txt")
-  case r of
-    Left ioe -> E.bad (E.ViaException ioe)
-    Right _  -> E.ok ()
-
-pipeline :: E.IOEither AppError ()
-pipeline = E.do
-  _ <- E.mapErrorE Domain =<< useDomain
-  _ <- E.mapErrorE Io     =<< useIo
-  E.ok ()
-```
-
-**Summary:**  
-- Use **`ViaException`** when you want to propagate exceptions directly.  
-- Use **`ViaShow`** (or a manual instance) for domain-specific errors.  
-- Use **bridging** when both styles appear together.
+---
 
 ## Installing
 
@@ -304,4 +300,3 @@ import qualified EitherDo.Edo as E
 ## License
 
 BSD-3-Clause
-
