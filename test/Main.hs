@@ -1,9 +1,12 @@
 module Main (main) where
 import Test.DocTest (doctest)
+import System.Environment (getArgs)
 
 main :: IO ()
-main = doctest
-  [ "-XQualifiedDo"
-  , "src"
-  ]
+main = do 
+  cli <- getArgs
+  doctest $
+    [ "-XQualifiedDo"
+    , "src"
+    ] ++ cli
 

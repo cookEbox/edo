@@ -41,6 +41,7 @@ library
         EithErrDo.Lift
         EithErrDo.Res
         EithErrDo.Types
+        ReadErrDo.Redo
     build-depends:      
         base ^>=4.19.2.0
       , text
