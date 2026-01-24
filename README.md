@@ -1,3 +1,9 @@
+> [!WARNING]
+> This repository is a **read-only release mirror**.
+>
+> Development happens on Forgejo.  
+> Pull requests and issues opened here will **not be reviewed or merged**.
+
 # edo — Qualified do-notation for `IO (Either e a)`
 
 > Write ergonomic, composable code in the `IO (Either e a)` style—without a transformer stack. Bring your own error type, keep `IO` at the base, and use `QualifiedDo` to get sleek `E.do` blocks.
